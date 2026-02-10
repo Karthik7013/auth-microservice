@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # NestJS Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-app
+    environment:
+      # Application
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      
+      # Database (using Aiven PostgreSQL)
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
+      
+      # JWT
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      
+      # Email
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM}
+      
+      # Rate Limiting
+      THROTTLE_TTL: ${THROTTLE_TTL:-60}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-10}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
