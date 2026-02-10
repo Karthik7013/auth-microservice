@@ -28,6 +28,9 @@ export class EmailService {
 
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
+      // Verify transporter connection before sending
+      await this.transporter.verify();
+      
       await this.transporter.sendMail({
         from: this.configService.get("EMAIL_FROM"),
         to: options.to,
@@ -37,8 +40,16 @@ export class EmailService {
       });
       console.log(`Email sent successfully to ${options.to}`);
     } catch (error) {
-      console.error("Error sending email:", error);
-      throw new Error("Failed to send email");
+      console.error("Error sending email:", {
+        to: options.to,
+        subject: options.subject,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        code: error?.code,
+        response: error?.response,
+        responseCode: error?.responseCode,
+      });
+      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : error}`);
     }
   }
 

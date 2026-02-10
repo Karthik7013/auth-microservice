@@ -23,7 +23,7 @@ export class AuthService {
     private readonly usersRepository: UsersRepository,
     private readonly emailService: EmailService,
     private readonly tokenFactory: TokenFactory,
-  ) {}
+  ) { }
 
   /**
    * Register a new user
@@ -51,17 +51,20 @@ export class AuthService {
     const verificationExpires =
       this.tokenFactory.getEmailVerificationExpiration();
 
+    // Set email verification token and expiration
     await this.usersRepository.setEmailVerificationToken(
       user.id,
       verificationToken,
       verificationExpires,
     );
 
-    // Send verification email
-    await this.emailService.sendVerificationEmail(
+    // Send verification email (hit and forgot)
+    void this.emailService.sendVerificationEmail(
       user.email,
       verificationToken,
-    );
+    ).catch(err => {
+      console.error('Failed to send verification email:', err);
+    });
 
     return {
       message:

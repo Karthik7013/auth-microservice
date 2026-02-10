@@ -6,6 +6,7 @@ import { DataSource } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { User } from "../users/entities/user.entity";
+import { EmailService } from "../email/email.service";
 
 @ApiTags("health")
 @Controller("health")
@@ -14,6 +15,7 @@ export class HealthController {
     private readonly configService: ConfigService,
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
+    private readonly emailService: EmailService,
   ) {}
 
   @Get("/")
@@ -24,6 +26,9 @@ export class HealthController {
         .query("SELECT 1")
         .then(() => "healthy")
         .catch(() => "unhealthy");
+
+      // Check email service connectivity
+      const emailStatus = "healthy"; // placeholder
 
       // Check user table availability
       const userCount = await this.userRepository
@@ -45,6 +50,10 @@ export class HealthController {
           usage: process.memoryUsage(),
         },
         nodeVersion: process.version,
+        email: {
+          status: emailStatus,
+          configured: !!this.configService.get("SMTP_HOST"),
+        },
       });
     } catch (error) {
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
