@@ -23,34 +23,72 @@ export class EmailService {
         user: this.configService.get("SMTP_USER"),
         pass: this.configService.get("SMTP_PASSWORD"),
       },
+      // Add connection timeout settings
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,   // 10 seconds
+      socketTimeout: 30000,     // 30 seconds
+      // Enable connection pooling for better performance
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      // TLS settings for better compatibility
+      tls: {
+        rejectUnauthorized: false, // Only if using self-signed certs
+      },
     });
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
-    try {
-      // Verify transporter connection before sending
-      await this.transporter.verify();
-      
-      await this.transporter.sendMail({
-        from: this.configService.get("EMAIL_FROM"),
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-      });
-      console.log(`Email sent successfully to ${options.to}`);
-    } catch (error) {
-      console.error("Error sending email:", {
-        to: options.to,
-        subject: options.subject,
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-        code: error?.code,
-        response: error?.response,
-        responseCode: error?.responseCode,
-      });
-      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : error}`);
+    await this.sendEmailWithRetry(options, 3);
+  }
+
+  private async sendEmailWithRetry(options: EmailOptions, maxRetries: number): Promise<void> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Verify transporter connection before sending (only on first attempt)
+        if (attempt === 1) {
+          await this.transporter.verify();
+        }
+
+        await this.transporter.sendMail({
+          from: this.configService.get("EMAIL_FROM"),
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+        });
+        console.log(`Email sent successfully to ${options.to} (attempt ${attempt})`);
+        return;
+      } catch (error) {
+        lastError = error as Error;
+
+        // Don't retry on authentication errors or invalid addresses
+        if (error.code === 'EAUTH' || error.code === 'ENOTFOUND') {
+          console.error(`Fatal email error (no retry): ${error.message}`);
+          throw new Error(`Failed to send email: ${error instanceof Error ? error.message : error}`);
+        }
+
+        if (attempt === maxRetries) break;
+
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        console.log(`Email send attempt ${attempt} failed, retrying in ${delay}ms... Error: ${error.message}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+
+    console.error("Error sending email:", {
+        to: options.to,
+        subject: options.subject,
+        error: lastError instanceof Error ? lastError.message : lastError,
+        stack: lastError instanceof Error ? lastError.stack : undefined,
+        code: (lastError as any)?.code,
+        response: (lastError as any)?.response,
+        responseCode: (lastError as any)?.responseCode,
+      });
+    throw new Error(`Failed to send email after ${maxRetries} attempts: ${lastError?.message}`);
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {
