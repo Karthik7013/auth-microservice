@@ -32,7 +32,7 @@ async function bootstrap() {
           imgSrc: ["'self'", "data:", "https:"],
           connectSrc: ["'self'"],
           fontSrc: ["'self'", "https://fonts.gstatic.com"],
-          objectSrc: ["none"],
+          objectSrc: ["'none'"],
           upgradeInsecureRequests: [],
         },
       },
